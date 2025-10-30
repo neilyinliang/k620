@@ -14,9 +14,8 @@ COPY --from=builder /app/app .
 
 ENV APP_ENV=production
 ENV APP_PORT=80
-ENV REGISTER_URL=https://unchainapi.bob99.workers.dev/api/node
 ENV SUB_ADDRESSES=a.mojocn.com,b.mojocn.com
-ENV ALLOW_USERS=903bcd04-79e7-429c-bf0c-0456c7de9cdc,903bcd04-79e7-429c-bf0c-0456c7de9cd1
+ENV ALLOW_USERS=a420aa94-5e8a-415d-9537-484be3774daa
 ENV INTERVAL_SECOND=3600
 ENV ENABLE_DATA_USAGE_METERING=true
 
