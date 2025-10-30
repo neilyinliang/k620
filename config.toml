@@ -7,7 +7,7 @@ RegisterUrl = '' #主控服务器地址,主要作用是控制用户授权和流�
 RegisterToken = 'unchain.people.from.censorship.and.surveillance'# 主控服务器的token
 AllowUsers = 'a420aa94-5e8a-415d-9537-484be3774daa' # UUID 可以访问的用户UUID,多个则用逗号分隔.个人模式这里不能为空 在线UUID生成器 https://1024tools.com/uuid
 LogFile = '' # 日志文件名,可以为空则不记录日志
-DebugLevel = 'debug' # 日志基本debug, info, warn, error
+DebugLevel = 'error' # 日志基本debug, info, warn, error
 IntervalSecond = '7200' #主控服务器推送流量数据的间隔,个人模式不关心
 EnableDataUsageMetering = 'false'
 
