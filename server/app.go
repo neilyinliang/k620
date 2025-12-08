@@ -3,10 +3,10 @@ package server
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"log"
 	"log/slog"
 	"net/http"
-	"io/fs"
 	"os"
 	"sync"
 	"time"
@@ -30,11 +30,7 @@ func (app *App) httpSvr() {
 	mux.HandleFunc("/wsv/{uid}", app.WsVLESS)
 	mux.HandleFunc("/ws-vless", app.WsVLESS)
 
-	content, err := fs.Sub(public.Public, "static")
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	content, _ := fs.Sub(public.Public, "dist")
 	fileServer := http.FileServer(http.FS(content))
 	mux.Handle("/", http.StripPrefix("/", fileServer))
 
