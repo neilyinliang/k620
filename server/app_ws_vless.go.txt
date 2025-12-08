@@ -1,0 +1,395 @@
+package server
+
+import (
+	"context"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"log"
+	"log/slog"
+	"net"
+	"net/http"
+	"os"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/neilyinliang/k620/schema"
+)
+
+const (
+	contentTypeHeader = "Content-Type"
+	contentTypeJSON   = "application/json"
+	upgradeHeader     = "Upgrade"
+	websocketProtocol = "websocket"
+	secWebSocketProto = "sec-websocket-protocol"
+
+	// 定义一个合理的读写超时时间，例如 3 分钟
+	readTimeOut = 60 * time.Second * 3
+	// 定义 io.Copy 缓冲区大小
+	ioBufferSize = 32 * 1024
+)
+
+// --- 核心 I/O 抽象结构体 ---
+
+// wsToTCPReader 实现了 io.Reader 接口，将 WebSocket 的 ReadMessage 转换为普通的 Read 行为。
+type wsToTCPReader struct {
+	ws     *websocket.Conn
+	logger *slog.Logger
+	buffer []byte // 存放上一次 ReadMessage 读到的数据
+	ctx    context.Context
+}
+
+// Read 从 WebSocket 中读取下一条二进制消息，并填充到 p。
+func (r *wsToTCPReader) Read(p []byte) (n int, err error) {
+	// 1. 检查 Context 是否取消
+	select {
+	case <-r.ctx.Done():
+		return 0, r.ctx.Err()
+	default:
+		// 2. 消耗内部缓冲区
+		if len(r.buffer) > 0 {
+			n = copy(p, r.buffer)
+			r.buffer = r.buffer[n:]
+			return n, nil
+		}
+
+		// 3. 从 WebSocket 读取新的 Message (依赖 copyBufferCount 设置超时)
+		// 每次 ReadMessage 都会返回完整的帧数据
+		mt, message, err := r.ws.ReadMessage()
+
+		if err != nil {
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure) || errors.Is(err, websocket.ErrCloseSent) || err == io.EOF {
+				return 0, io.EOF // 视为正常关闭
+			}
+			r.logger.Error("Error reading message from WebSocket:", "err", err)
+			return 0, err
+		}
+
+		if mt != websocket.BinaryMessage {
+			return 0, nil // 跳过非二进制消息，继续尝试读取下一条
+		}
+
+		// 4. 更新内部缓冲区并拷贝数据
+		r.buffer = message
+		n = copy(p, r.buffer)
+		r.buffer = r.buffer[n:]
+
+		return n, nil
+	}
+}
+
+// tcpToWSWriter 实现了 io.Writer 接口，将数据写入 WebSocket，并在第一次写入时附加 VLESS Header。
+type tcpToWSWriter struct {
+	ws               *websocket.Conn
+	logger           *slog.Logger
+	headerVLESS      []byte
+	hasNotSentHeader *bool
+}
+
+// Write 将 p 中的数据作为 WebSocket 二进制消息发送。
+func (w *tcpToWSWriter) Write(p []byte) (n int, err error) {
+	data := p
+
+	// 第一次写入时，附加 VLESS Header
+	if *w.hasNotSentHeader {
+		*w.hasNotSentHeader = false
+		// 避免 append 导致内存泄漏，使用一个新的 slice 确保 headerVLESS 不变
+		fullData := make([]byte, len(w.headerVLESS)+len(p))
+		copy(fullData, w.headerVLESS)
+		copy(fullData[len(w.headerVLESS):], p)
+		data = fullData
+	}
+
+	err = w.ws.WriteMessage(websocket.BinaryMessage, data)
+	if err != nil {
+		w.logger.Error("Error writing message to WebSocket:", "err", err)
+		return 0, err
+	}
+	return len(p), nil // 始终返回实际消耗的源数据长度 p
+}
+
+// --- 通用 I/O 辅助函数 ---
+
+// copyWithTrafficCount 实现 io.Copy 的功能，但加入了流量计数器和上下文检查。
+// 它可以用于 net.Conn <-> net.Conn, io.Reader <-> io.Writer 等场景。
+func copyWithTrafficCount(ctx context.Context, dst io.Writer, src io.Reader, buf []byte, counter *atomic.Int64) (written int64, err error) {
+	if len(buf) == 0 {
+		buf = make([]byte, ioBufferSize)
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			// 如果上下文取消，返回已写入的字节数和上下文错误
+			return written, ctx.Err()
+		default:
+			// 1. 设置读取超时
+			// 对 net.Conn 设置 ReadDeadline
+			if conn, ok := src.(net.Conn); ok {
+				// 避免在循环中重复调用 time.Now()，这里只是示例性的快速设置
+				conn.SetReadDeadline(time.Now().Add(readTimeOut))
+			}
+			// 对 WebSocket.Conn 设置 ReadDeadline
+			if wsConn, ok := src.(*websocket.Conn); ok {
+				wsConn.SetReadDeadline(time.Now().Add(readTimeOut))
+			}
+
+			// 2. Read
+			nr, rerr := src.Read(buf)
+			if nr > 0 {
+				// 3. Write
+				nw, werr := dst.Write(buf[:nr])
+				counter.Add(int64(nw)) // 统计写入流量
+				written += int64(nw)
+				if werr != nil {
+					return written, werr
+				}
+				if nr != nw {
+					return written, io.ErrShortWrite
+				}
+			}
+
+			// 4. Check Read Error
+			if rerr != nil {
+				if rerr == io.EOF {
+					return written, nil // 正常结束
+				}
+				// 对于 websocket 传输，有些错误可能也需要视为正常关闭
+				if _, ok := src.(*wsToTCPReader); ok && rerr == io.ErrUnexpectedEOF {
+					return written, nil
+				}
+				return written, rerr // 其他错误
+			}
+		}
+	}
+}
+
+// --- 应用程序方法 ---
+
+func startDstConnection(vd *schema.ProtoVLESS, timeout time.Duration) (net.Conn, []byte, error) {
+	// 使用 net.Dialer 替代 DialTimeout 以更好地控制上下文
+	dialer := net.Dialer{Timeout: timeout}
+	conn, err := dialer.Dial(vd.DstProtocol, vd.HostPort())
+	if err != nil {
+		return nil, nil, fmt.Errorf("connecting to destination: %w", err)
+	}
+	// VLESS 握手响应头：版本号 + 成功状态 (0x00)
+	return conn, []byte{vd.Version, 0x00}, nil
+}
+
+func (app *App) WsVLESS(w http.ResponseWriter, r *http.Request) {
+	uid := r.PathValue("uid")
+
+	// 1. 检查是否为 WebSocket 升级请求
+	if r.Header.Get(upgradeHeader) != websocketProtocol {
+		w.Header().Set(contentTypeHeader, contentTypeJSON)
+		w.WriteHeader(http.StatusOK)
+		data := map[string]string{"msg": "pong", "uid": uid}
+		json.NewEncoder(w).Encode(data)
+		return
+	}
+
+	ctx := r.Context()
+
+	// 2. 读取 Early Data
+	earlyDataHeader := r.Header.Get(secWebSocketProto)
+	earlyData, err := base64.RawURLEncoding.DecodeString(earlyDataHeader)
+	if err != nil {
+		// Log 级别降低，这可能是正常情况下的空头
+		log.Println("Warning: Error decoding early data from header, attempting to read from first message:", err)
+	}
+
+	// 3. 升级 WebSocket
+	ws, err := app.upGrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println("Error upgrading to websocket:", err)
+		return
+	}
+	defer ws.Close()
+
+	// 4. 如果 Header 中无数据，尝试读取第一条 WebSocket 消息
+	if len(earlyData) == 0 {
+		// 设置一个短超时读取第一条消息
+		ws.SetReadDeadline(time.Now().Add(5 * time.Second))
+		mt, p, readErr := ws.ReadMessage()
+		ws.SetReadDeadline(time.Time{}) // 读取完毕后取消超时
+
+		if readErr != nil {
+			log.Println("Error reading first message:", readErr)
+			return
+		}
+		if mt == websocket.BinaryMessage {
+			earlyData = p
+		}
+	}
+
+	// 5. 解析 VLESS 握手数据
+	vData, err := schema.VLESSParse(earlyData)
+	if err != nil {
+		log.Println("Error parsing vless data:", err)
+		return
+	}
+	if app.IsUserNotAllowed(vData.UUID()) {
+		return
+	}
+
+	sessionTrafficByteN := int64(len(earlyData))
+
+	// 6. 转发逻辑
+	if vData.DstProtocol == "udp" {
+		sessionTrafficByteN += app.vlessUDP(ctx, vData, ws)
+	} else if vData.DstProtocol == "tcp" {
+		// 重点优化函数
+		sessionTrafficByteN += app.vlessTCP(ctx, vData, ws)
+	} else {
+		log.Println("Error unsupported protocol:", vData.DstProtocol)
+		return
+	}
+
+	// 7. 统计流量
+	go app.trafficInc(vData.UUID(), sessionTrafficByteN)
+}
+
+func (app *App) vlessTCP(ctx context.Context, sv *schema.ProtoVLESS, ws *websocket.Conn) int64 {
+	logger := sv.Logger()
+	conn, headerVLESS, err := startDstConnection(sv, time.Millisecond*1000)
+	if err != nil {
+		logger.Error("Error starting session:", "err", err)
+		return 0
+	}
+	defer conn.Close()
+	logger.Info("Session started tcp")
+
+	// 写入 VLESS early data
+	if len(sv.DataTcp()) > 0 {
+		_, err = conn.Write(sv.DataTcp())
+		if err != nil {
+			logger.Error("Error writing early data to TCP connection:", "err", err)
+			return 0
+		}
+	}
+
+	var trafficMeter atomic.Int64
+	var wg sync.WaitGroup
+
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel() // 确保所有 goroutine 在函数返回时退出
+
+	// 从 sync.Pool 获取缓冲区（共用一个缓冲区，但在不同 goroutine 中独立使用）
+	buf := app.bufferPool.Get().([]byte)
+	defer app.bufferPool.Put(buf)
+
+	// 为了避免 TCP -> WS 转发中 Read/Write 使用同一个 buf 导致竞态，
+	// 我们可以为两个方向分别准备缓冲区，或者直接在 copyWithTrafficCount 内部创建 buf。
+	// 这里沿用原代码的 bufferPool 习惯，但我们需要为双向拷贝提供足够的独立缓冲区。
+	// 为了简洁和安全，我们只在 TCP -> WS 转发中使用 pool buffer，WS -> TCP 转发使用 copyWithTrafficCount 内部创建的 buf。
+
+	wg.Add(2)
+
+	// 1. WebSocket -> TCP (上行流量)
+	go func() {
+		defer wg.Done()
+		defer cancel() // 任何一侧出错都关闭连接
+
+		// 使用封装的 wsToTCPReader 作为源
+		reader := &wsToTCPReader{ws: ws, logger: logger, ctx: ctx}
+		// 使用一个空切片，让 copyWithTrafficCount 内部创建缓冲区
+		_, err := copyWithTrafficCount(ctx, conn, reader, nil, &trafficMeter)
+
+		if err != nil && err != context.Canceled && err != io.EOF {
+			logger.Error("WebSocket -> TCP transfer error:", "err", err)
+		}
+	}()
+
+	// 2. TCP -> WebSocket (下行流量)
+	go func() {
+		defer wg.Done()
+		defer cancel() // 任何一侧出错都关闭连接
+
+		hasNotSentHeader := true
+
+		// 使用封装的 tcpToWSWriter 作为目标，它会在第一次 Write 时附加 headerVLESS
+		writer := &tcpToWSWriter{
+			ws:               ws,
+			logger:           logger,
+			headerVLESS:      headerVLESS,
+			hasNotSentHeader: &hasNotSentHeader,
+		}
+
+		// 使用从 Pool 获取的 buf 进行拷贝
+		_, err := copyWithTrafficCount(ctx, writer, conn, buf, &trafficMeter)
+
+		if err != nil && err != context.Canceled && err != io.EOF {
+			logger.Error("TCP -> WebSocket transfer error:", "err", err)
+		}
+	}()
+
+	// Wait for both directions to finish
+	wg.Wait()
+
+	return trafficMeter.Load()
+}
+
+// vlessUDP handles UDP traffic over VLESS protocol via WebSocket is tested ok
+// 注意：UDP 转发逻辑未做大规模改动，因其流程与 TCP 差异较大，且原注释表明已测试通过。
+// 但流量统计和错误处理习惯性地进行了微调。
+func (app *App) vlessUDP(_ context.Context, sv *schema.ProtoVLESS, ws *websocket.Conn) (trafficMeter int64) {
+	logger := sv.Logger()
+	// 使用 net.Dialer 而非 net.DialTimeout，但这里保持原样以简化
+	conn, headerVLESS, err := startDstConnection(sv, time.Millisecond*1000)
+	if err != nil {
+		logger.Error("Error starting session:", "err", err)
+		return
+	}
+	defer conn.Close()
+
+	udpData := sv.DataUdp()
+	_, err = conn.Write(udpData)
+	if err != nil {
+		logger.Error("Error writing early data to UDP connection:", "err", err)
+		return
+	}
+	trafficMeter += int64(len(udpData)) // 统计上行流量
+
+	buf := app.bufferPool.Get().([]byte)
+	defer app.bufferPool.Put(buf)
+
+	// 设置较短的 UDP 响应超时
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	n, err := conn.Read(buf)
+	if err != nil {
+		// UDP 读超时或错误通常被视为正常结束
+		if !errors.Is(err, io.EOF) && !errors.Is(err, net.ErrClosed) && !errors.Is(err, os.ErrDeadlineExceeded) {
+			logger.Error("Error reading from UDP connection:", "err", err)
+		}
+		return trafficMeter // 返回已统计的上行流量
+	}
+
+	// VLESS 握手响应 + UDP 数据长度 + UDP 数据
+	// 这里假设 VLESS 响应格式为 [VLESS_Response_Header][UDP_Length_2B][UDP_Data]
+	udpResponse := make([]byte, 0, len(headerVLESS)+2+n)
+	udpResponse = append(udpResponse, headerVLESS...)
+
+	// 附加长度 (2字节)
+	udpDataLen1 := (n >> 8) & 0xff
+	udpDataLen2 := n & 0xff
+	udpResponse = append(udpResponse, byte(udpDataLen1), byte(udpDataLen2))
+
+	// 附加 UDP 数据
+	udpResponse = append(udpResponse, buf[:n]...)
+
+	// send back the first udp packet with vless header
+	err = ws.WriteMessage(websocket.BinaryMessage, udpResponse)
+	if err != nil {
+		logger.Error("Error writing to websocket:", "err", err)
+		return trafficMeter // 返回已统计的上行流量
+	}
+
+	// 统计下行流量
+	trafficMeter += int64(len(udpResponse))
+	return trafficMeter
+}

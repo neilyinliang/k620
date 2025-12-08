@@ -6,13 +6,14 @@ import (
 	"log"
 	"log/slog"
 	"net/http"
-	"net/http/pprof"
+	"io/fs"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/neilyinliang/k620/global"
+	"github.com/neilyinliang/k620/public"
 )
 
 type App struct {
@@ -28,14 +29,14 @@ func (app *App) httpSvr() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/wsv/{uid}", app.WsVLESS)
 	mux.HandleFunc("/ws-vless", app.WsVLESS)
-	mux.HandleFunc("/", app.Ping)
 
-	// pprof handlers
-	mux.HandleFunc("/debug/pprof/", pprof.Index)
-	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	content, err := fs.Sub(public.Public, "static")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fileServer := http.FileServer(http.FS(content))
+	mux.Handle("/", http.StripPrefix("/", fileServer))
 
 	server := &http.Server{
 		Addr:         app.cfg.ListenAddr(),

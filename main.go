@@ -45,7 +45,7 @@ func main() {
 }
 
 func runServer() {
-	fd := global.SetupLogger("", "DEBUG")
+	fd := global.SetupLogger("", "WARN")
 	defer fd.Close()
 
 	// Channel to listen for OS signals
