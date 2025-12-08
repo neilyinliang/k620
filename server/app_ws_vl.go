@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -24,10 +25,29 @@ const (
 	upgradeHeader     = "Upgrade"
 	websocketProtocol = "websocket"
 	secWebSocketProto = "sec-websocket-protocol"
+	connectTimeout    = time.Millisecond * 1000
 )
 
-func startDstConnection(vd *schema.ProtoVLESS, timeout time.Duration) (net.Conn, []byte, error) {
-	conn, err := net.DialTimeout(vd.DstProtocol, vd.HostPort(), timeout)
+func (app *App) startDstConnection(vd *schema.ProtoVLESS) (net.Conn, []byte, error) {
+	hostPort := vd.HostPort()
+
+	isSpecialDomain := false
+	for _, specialDomain := range app.specialDomains {
+		if strings.Contains(hostPort, specialDomain) {
+			isSpecialDomain = true
+			break
+		}
+	}
+
+	if isSpecialDomain {
+		conn, err := app.dialer.Dial(vd.DstProtocol, vd.HostPort())
+		if err != nil {
+			return nil, nil, fmt.Errorf("connecting to destination: %w", err)
+		}
+		return conn, []byte{vd.Version, 0x00}, nil
+	}
+
+	conn, err := net.DialTimeout(vd.DstProtocol, vd.HostPort(), connectTimeout)
 	if err != nil {
 		return nil, nil, fmt.Errorf("connecting to destination: %w", err)
 	}
@@ -98,9 +118,9 @@ const readTimeOut = 60 * time.Second * 3
 
 func (app *App) vlessTCP(ctx context.Context, sv *schema.ProtoVLESS, ws *websocket.Conn) int64 {
 	logger := sv.Logger()
-	conn, headerVLESS, err := startDstConnection(sv, time.Millisecond*1000)
+	conn, headerVLESS, err := app.startDstConnection(sv)
 	if err != nil {
-		logger.Error("Error starting session:", "err", err)
+		//logger.Error("Error starting session:", "err", err)
 		return 0
 	}
 	defer conn.Close()
@@ -139,7 +159,7 @@ func (app *App) vlessTCP(ctx context.Context, sv *schema.ProtoVLESS, ws *websock
 					return
 				}
 				if err != nil {
-					logger.Error("Error reading message:", "err", err)
+					// logger.Error("Error reading message:", "err", err)
 					return
 				}
 				if mt != websocket.BinaryMessage {
@@ -172,7 +192,7 @@ func (app *App) vlessTCP(ctx context.Context, sv *schema.ProtoVLESS, ws *websock
 					return
 				}
 				if err != nil {
-					logger.Error("Error reading from TCP connection:", "err", err)
+					// logger.Error("Error reading from TCP connection:", "err", err)
 					return
 				}
 				data := buf[:n]
@@ -183,7 +203,7 @@ func (app *App) vlessTCP(ctx context.Context, sv *schema.ProtoVLESS, ws *websock
 				}
 				err = ws.WriteMessage(websocket.BinaryMessage, data)
 				if err != nil {
-					logger.Error("Error writing to websocket:", "err", err)
+					//logger.Error("Error writing to websocket:", "err", err)
 					return
 				}
 			}
@@ -195,17 +215,17 @@ func (app *App) vlessTCP(ctx context.Context, sv *schema.ProtoVLESS, ws *websock
 
 // vlessUDP handles UDP traffic over VLESS protocol via WebSocket is tested ok
 func (app *App) vlessUDP(_ context.Context, sv *schema.ProtoVLESS, ws *websocket.Conn) (trafficMeter int64) {
-	logger := sv.Logger()
-	conn, headerVLESS, err := startDstConnection(sv, time.Millisecond*1000)
+	// logger := sv.Logger()
+	conn, headerVLESS, err := app.startDstConnection(sv)
 	if err != nil {
-		logger.Error("Error starting session:", "err", err)
+		// logger.Error("Error starting session:", "err", err)
 		return
 	}
 	defer conn.Close()
 	udpData := sv.DataUdp()
 	_, err = conn.Write(udpData)
 	if err != nil {
-		logger.Error("Error writing early data to UDP connection:", "err", err)
+		// logger.Error("Error writing early data to UDP connection:", "err", err)
 		return
 	}
 
@@ -214,7 +234,7 @@ func (app *App) vlessUDP(_ context.Context, sv *schema.ProtoVLESS, ws *websocket
 	conn.SetDeadline(time.Now().Add(2 * time.Second))
 	n, err := conn.Read(buf)
 	if err != nil {
-		logger.Error("Error reading from UDP connection:", "err", err)
+		// logger.Error("Error reading from UDP connection:", "err", err)
 		return
 	}
 	udpDataLen1 := (n >> 8) & 0xff
@@ -225,7 +245,7 @@ func (app *App) vlessUDP(_ context.Context, sv *schema.ProtoVLESS, ws *websocket
 	//send back the first udp packet with vless header
 	err = ws.WriteMessage(websocket.BinaryMessage, headerVLESS)
 	if err != nil {
-		logger.Error("Error writing to websocket:", "err", err)
+		// logger.Error("Error writing to websocket:", "err", err)
 		return
 	}
 	return int64(len(headerVLESS)) + int64(len(udpData))

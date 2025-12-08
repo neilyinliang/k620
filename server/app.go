@@ -6,8 +6,10 @@ import (
 	"io/fs"
 	"log"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,6 +25,8 @@ type App struct {
 	exitSignal        chan os.Signal
 	bufferPool        *sync.Pool
 	upGrader          *websocket.Upgrader
+	dialer            *net.Dialer
+	specialDomains    []string
 }
 
 func (app *App) httpSvr() {
@@ -42,7 +46,6 @@ func (app *App) httpSvr() {
 		IdleTimeout:  60 * time.Second,
 	}
 	app.svr = server
-
 }
 
 func NewApp(c *global.Config, sig chan os.Signal) *App {
@@ -66,6 +69,33 @@ func NewApp(c *global.Config, sig chan os.Signal) *App {
 				return true
 			},
 		},
+		dialer: &net.Dialer{
+			Timeout:   5 * time.Second,
+			DualStack: true,
+			Resolver: &net.Resolver{
+				PreferGo: true,
+				Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+					d := net.Dialer{
+						Timeout: time.Millisecond * time.Duration(5000),
+					}
+					return d.DialContext(ctx, "udp", "8.8.8.8:53")
+				},
+			},
+		},
+		specialDomains: func() []string {
+			if domainsStr := os.Getenv("DOMAINS"); domainsStr != "" {
+				log.Printf("DOMAINS: %s", domainsStr)
+				return strings.Split(domainsStr, ",")
+			}
+			return []string{}
+		}(),
+		/**
+		specialDomains: []string{
+			"youtube",
+			"facebook",
+			"telegram",
+		},
+		*/
 	}
 	for _, userID := range c.UserIDS() {
 		app.userUsedTrafficKb.Store(userID, int64(0))
