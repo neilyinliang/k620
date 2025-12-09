@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/fs"
 	"log"
+	"mime"
 	"net"
 	"net/http"
 	"os"
@@ -33,6 +34,7 @@ func (app *App) httpSvr() {
 	wsPath := "/" + app.uid
 	mux.HandleFunc(wsPath, app.WsVLESS)
 
+	mime.AddExtensionType(".js", "application/javascript")
 	content, _ := fs.Sub(public.Public, "dist")
 	fileServer := http.FileServer(http.FS(content))
 	mux.Handle("/", http.StripPrefix("/", fileServer))
