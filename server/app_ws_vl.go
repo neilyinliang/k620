@@ -111,7 +111,6 @@ func (app *App) WsVLESS(w http.ResponseWriter, r *http.Request) {
 		log.Println("Error unsupported protocol:", vData.DstProtocol)
 		return
 	}
-	go app.trafficInc(vData.UUID(), sessionTrafficByteN)
 }
 
 const readTimeOut = 60 * time.Second * 3
@@ -167,7 +166,7 @@ func (app *App) vlessTCP(ctx context.Context, sv *schema.ProtoVLESS, ws *websock
 				}
 				_, err = conn.Write(message)
 				if err != nil {
-					logger.Error("Error writing to TCP connection:", "err", err)
+					// logger.Error("Error writing to TCP connection:", "err", err)
 					return
 				}
 			}

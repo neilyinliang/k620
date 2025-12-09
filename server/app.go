@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io/fs"
 	"log"
-	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -19,20 +18,20 @@ import (
 )
 
 type App struct {
-	cfg               *global.Config
-	userUsedTrafficKb sync.Map // string -> int64
-	svr               *http.Server
-	exitSignal        chan os.Signal
-	bufferPool        *sync.Pool
-	upGrader          *websocket.Upgrader
-	dialer            *net.Dialer
-	specialDomains    []string
+	cfg            *global.Config
+	uid            string
+	svr            *http.Server
+	exitSignal     chan os.Signal
+	bufferPool     *sync.Pool
+	upGrader       *websocket.Upgrader
+	dialer         *net.Dialer
+	specialDomains []string
 }
 
 func (app *App) httpSvr() {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/wsv/{uid}", app.WsVLESS)
-	mux.HandleFunc("/ws-vless", app.WsVLESS)
+	wsPath := "/" + app.uid
+	mux.HandleFunc(wsPath, app.WsVLESS)
 
 	content, _ := fs.Sub(public.Public, "dist")
 	fileServer := http.FileServer(http.FS(content))
@@ -51,10 +50,10 @@ func (app *App) httpSvr() {
 func NewApp(c *global.Config, sig chan os.Signal) *App {
 	bufferSize := c.GetBufferSize()
 	app := &App{
-		cfg:               c,
-		userUsedTrafficKb: sync.Map{},
-		exitSignal:        sig,
-		svr:               nil,
+		cfg:        c,
+		uid:        c.AllowUsers,
+		exitSignal: sig,
+		svr:        nil,
 		bufferPool: &sync.Pool{
 			New: func() interface{} {
 				return make([]byte, bufferSize)
@@ -97,9 +96,7 @@ func NewApp(c *global.Config, sig chan os.Signal) *App {
 		},
 		*/
 	}
-	for _, userID := range c.UserIDS() {
-		app.userUsedTrafficKb.Store(userID, int64(0))
-	}
+
 	app.httpSvr()
 	go app.loopPush()
 	return app
@@ -135,24 +132,6 @@ func (app *App) loopPush() {
 	}
 }
 
-func (app *App) trafficInc(uid string, byteN int64) {
-	if !app.cfg.EnableUsageMetering() {
-		return
-	}
-	kb := byteN >> 10
-	value, ok := app.userUsedTrafficKb.Load(uid)
-	if ok {
-		iv, isInt64 := value.(int64)
-		if isInt64 {
-			kb += iv
-		} else {
-			slog.Error("not a int64", "uid", uid, "value", value)
-		}
-	}
-	app.userUsedTrafficKb.Store(uid, kb)
-}
-
 func (app *App) IsUserNotAllowed(uuid string) (isNotAllowed bool) {
-	_, ok := app.userUsedTrafficKb.Load(uuid)
-	return !ok
+	return uuid != app.uid
 }
