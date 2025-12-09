@@ -41,7 +41,7 @@ window.ShopifyPay.apiHost = "shop.app\/pay";</script>
 <script id="captcha-bootstrap">!function(){'use strict';const t='contact',e='account',n='new_comment',o=[[t,t],['blogs',n],['comments',n],[t,'customer']],c=[[e,'customer_login'],[e,'guest_login'],[e,'recover_customer_password'],[e,'create_customer']],r=t=>t.map((([t,e])=>`form[action*='/${t}']:not([data-nocaptcha='true']) input[name='form_type'][value='${e}']`)).join(',');function s(t,e,n=!1){try{const o=window.sessionStorage;for(const[n,c]of Object.entries(JSON.parse(o.getItem(e))))t.elements[n]&&(t.elements[n].value=c);n&&o.removeItem(e)}catch{}}const a='form_key',i=['recaptcha-v3-token','g-recaptcha-response','h-captcha-response','password'],u=()=>{try{return window.sessionStorage}catch{return}},m=t=>t.elements[a],f='form_type',d='cptcha';function p(t){t.dataset[d]=!0}const l=window,h=l.document,_='Shopify',y='ce_forms',E='captcha';let v=!1;((t,e)=>{const n=(g='f06e6c50-85a8-45c8-87d0-21a2b65856fe','https://cdn.shopify.com/shopifycloud/storefront-forms-hcaptcha/ce_storefront_forms_captcha_hcaptcha.v1.4.0.iife.js',T={infoText:'Protected by hCaptcha',privacyText:'Privacy',termsText:'Terms'},(t,e,n)=>{const o=l[_][y],c=o.bindForm;if(c)return c(t,g,e,T).then(n);o.q.push([[t,g,e,T],n]),v||(h.body.append(Object.assign(h.createElement('script'),{id:'captcha-provider',async:!0,src:'https://cdn.shopify.com/shopifycloud/storefront-forms-hcaptcha/ce_storefront_forms_captcha_hcaptcha.v1.4.0.iife.js'})),v=!0)});var g,T;l[_]=l[_]||{},l[_][y]=l[_][y]||{},l[_][y].q=[],l[_][E]=l[_][E]||{},l[_][E].protect=function(t,e){n(t,void 0,e),p(t)},Object.freeze(l[_][E]),function(t,e,n,l,h,_){const[y,E,v,g]=function(t,e,n){const s=e?o:[],a=t?c:[],i=[...s,...a],u=[...o],m=r(i),f=r(s),d=n&&r(i.filter((([t,e])=>n.includes(e)))),p=r(u),l=t=>()=>t?[...document.querySelectorAll(t)].map((t=>t.form)):[];return[l(m),l(f),l(d),l(p)]}(l,h,_),T=t=>{const e=t.target;return e instanceof HTMLFormElement?e:e&&e.form},S=t=>y().includes(t);t.addEventListener('submit',(t=>{const e=T(t);if(!e)return;const n=S(e)&&!e.dataset.hcaptchaBound&&!e.dataset.recaptchaBound,o=m(e),c=g().includes(e)&&(!o||!o.value);(n||c)&&t.preventDefault(),c&&!n&&(function(t){try{if(!u())return;!function(t){const e=u();if(!e)return;const n=m(t);if(!n)return;const o=n.value;o&&e.removeItem(o)}(t);const e=Array.from(Array(32),(()=>Math.random().toString(36)[2])).join('');!function(t,e){m(t)||t.append(Object.assign(document.createElement('input'),{type:'hidden',name:a})),t.elements[a].value=e}(t,e),function(t,e){const n=u();if(!n)return;const o=[...t.querySelectorAll('input[type="password"]')].map((({name:t})=>t)),c=[...i,...o],r={};for(const[s,a]of new FormData(t).entries())c.includes(s)||(r[s]=a);n.setItem(e,JSON.stringify(r))}(t,e)}catch(e){console.error('failed to persist form',e)}}(e),e.submit())}));const w=(t,e)=>{t&&!t.dataset[d]&&(n(t,e.some((e=>e===t))),p(t))};for(const o of['focusin','change'])t.addEventListener(o,(t=>{const e=T(t);S(e)&&w(e,E())}));const A=e.get('form_key'),b=e.get(f),I=A&&b;t.addEventListener('DOMContentLoaded',(()=>{const t=E();if(I)for(const e of t)e.elements[f].value===b&&s(e,A);[...new Set([...v(),...y().filter((t=>'true'===t.dataset.shopifyCaptcha))])].forEach((e=>w(e,t)))}))}(h,new URLSearchParams(l.location.search),n,!0,!0,['guest_login'])})()}();</script>
 <script id="captcha-terms">!function(){'use strict';const e=/recaptcha|reCATPCHA|google|Googl/gi,t=o=>{let c=o.firstChild;for(;c;)c.nodeType===Node.TEXT_NODE?c.textContent=c.textContent.replace(e,'hCaptcha'):c.nodeType===Node.ELEMENT_NODE&&t(c),c=c.nextSibling};document.addEventListener('DOMContentLoaded',(()=>{(e=>{const o=document.querySelector('p[data-spam-detection-disclaimer]');if(o){for(const e of['terms','privacy']){const t=o.querySelector(`a[href*='https://policies.google.com/${e}']`);t&&(t.href=`https://hcaptcha.com/${e}`)}t(o)}})()}))}();</script>
 <script integrity="sha256-n5Uet9jVOXPHGd4hH4B9Y6+BxkTluaaucmYaxAjUcvY=" data-source-attribution="shopify.loadfeatures" defer="defer" src="cdn/shopifycloud/shopify/assets/storefront/load_feature-9f951eb7d8d53973c719de211f807d63af81c644e5b9a6ae72661ac408d472f6.js" crossorigin="anonymous"></script>
-<script crossorigin="anonymous" defer="defer" src="cdn/shopifycloud/shopify/assets/shopify_pay/storefront-80e528be853eac23af2454534897ca9536b1d3d04aa043b042f34879a3c111c8.js%3Fv=20220906"></script>
+<script crossorigin="anonymous" defer="defer" src="cdn/shopifycloud/shopify/assets/shopify_pay/storefront-80e528be853eac23af2454534897ca9536b1d3d04aa043b042f34879a3c111c8.js"></script>
 
 
 <style id="shopify-dynamic-checkout-cart">@media screen and (min-width: 750px) {
@@ -64,8 +64,8 @@ window.ShopifyPay.apiHost = "shop.app\/pay";</script>
   font-weight: 400;
   font-style: normal;
   font-display: swap;
-  src: url("cdn/fonts/amiri/amiri_n4.33f03ad85977dcd0f607792cd27b2143d63a6552.woff2%3Fh1=ZmZlY2I5LTQuYWNjb3VudC5teXNob3BpZnkuY29t&h2=bWlzYWtvZmxvZGluLmNvbQ&hmac=cb058b23990a23980ecd84c596c8edc102f6ca9904861eabe0da0af8c893cc79") format("woff2"),
-       url("cdn/fonts/amiri/amiri_n4.2d85330f8e5476326678a51d24d81150b376720b.woff%3Fh1=ZmZlY2I5LTQuYWNjb3VudC5teXNob3BpZnkuY29t&h2=bWlzYWtvZmxvZGluLmNvbQ&hmac=a3401059a2f1bd4f2425f380ab589d4c6ed183ed518cf7623051c68aa76e9881") format("woff");
+  src: url("cdn/fonts/amiri/amiri_n4.33f03ad85977dcd0f607792cd27b2143d63a6552.woff2") format("woff2"),
+       url("cdn/fonts/amiri/amiri_n4.2d85330f8e5476326678a51d24d81150b376720b.woff") format("woff");
 }
 
       @font-face {
@@ -73,8 +73,8 @@ window.ShopifyPay.apiHost = "shop.app\/pay";</script>
   font-weight: 700;
   font-style: normal;
   font-display: swap;
-  src: url("cdn/fonts/amiri/amiri_n7.3c33a95a0f2ec579fe307211f4076d23082fd631.woff2%3Fh1=ZmZlY2I5LTQuYWNjb3VudC5teXNob3BpZnkuY29t&h2=bWlzYWtvZmxvZGluLmNvbQ&hmac=aa3214596fdaaa5a8958fbb861c84b5046335b686339e5c3ab6b0ac37108fa6c") format("woff2"),
-       url("cdn/fonts/amiri/amiri_n7.157c2e40c3dae16f1fa6546ed7351dceb647f060.woff%3Fh1=ZmZlY2I5LTQuYWNjb3VudC5teXNob3BpZnkuY29t&h2=bWlzYWtvZmxvZGluLmNvbQ&hmac=07f51e4d825b1911e15af8a427d69ac63cecaa9bb191470eda36b9340d71d03e") format("woff");
+  src: url("cdn/fonts/amiri/amiri_n7.3c33a95a0f2ec579fe307211f4076d23082fd631.woff2") format("woff2"),
+       url("cdn/fonts/amiri/amiri_n7.157c2e40c3dae16f1fa6546ed7351dceb647f060.woff") format("woff");
 }
 
       @font-face {
@@ -82,8 +82,8 @@ window.ShopifyPay.apiHost = "shop.app\/pay";</script>
   font-weight: 400;
   font-style: italic;
   font-display: swap;
-  src: url("cdn/fonts/amiri/amiri_i4.67141ba5038dd816aba38b780ea52e9cb129c483.woff2%3Fh1=ZmZlY2I5LTQuYWNjb3VudC5teXNob3BpZnkuY29t&h2=bWlzYWtvZmxvZGluLmNvbQ&hmac=4627b5244562d2870016bf3001f46fa7d4c85f0204139d40f1d954f91dc4d7fb") format("woff2"),
-       url("cdn/fonts/amiri/amiri_i4.4d6a400c830c0e5111931eb5d37345d120435c4c.woff%3Fh1=ZmZlY2I5LTQuYWNjb3VudC5teXNob3BpZnkuY29t&h2=bWlzYWtvZmxvZGluLmNvbQ&hmac=c87207192986b4b99e498d0fbea1bd6a226b56a850b1a1511dfbafca9c37a59d") format("woff");
+  src: url("cdn/fonts/amiri/amiri_i4.67141ba5038dd816aba38b780ea52e9cb129c483.woff2") format("woff2"),
+       url("cdn/fonts/amiri/amiri_i4.4d6a400c830c0e5111931eb5d37345d120435c4c.woff") format("woff");
 }
 
       @font-face {
@@ -91,8 +91,8 @@ window.ShopifyPay.apiHost = "shop.app\/pay";</script>
   font-weight: 700;
   font-style: italic;
   font-display: swap;
-  src: url("cdn/fonts/amiri/amiri_i7.f5cb5ad7c202baad0141069f71329664e4943761.woff2%3Fh1=ZmZlY2I5LTQuYWNjb3VudC5teXNob3BpZnkuY29t&h2=bWlzYWtvZmxvZGluLmNvbQ&hmac=83a9b1f38cda24914ea37b872c2a3dfe14fd3273964280ad1cb7aad9a85c9dbb") format("woff2"),
-       url("cdn/fonts/amiri/amiri_i7.4319de4fc308b731e01c25c899e458fbabfc6261.woff%3Fh1=ZmZlY2I5LTQuYWNjb3VudC5teXNob3BpZnkuY29t&h2=bWlzYWtvZmxvZGluLmNvbQ&hmac=709fd18ed715ed5ea06564e83e6b2d229dccd9f804f92aaebcce4d740557fc50") format("woff");
+  src: url("cdn/fonts/amiri/amiri_i7.f5cb5ad7c202baad0141069f71329664e4943761.woff2") format("woff2"),
+       url("cdn/fonts/amiri/amiri_i7.4319de4fc308b731e01c25c899e458fbabfc6261.woff") format("woff");
 }
 
       @font-face {
@@ -100,8 +100,8 @@ window.ShopifyPay.apiHost = "shop.app\/pay";</script>
   font-weight: 400;
   font-style: normal;
   font-display: swap;
-  src: url("cdn/fonts/crimson_text/crimsontext_n4.b27fe5dd7d0f6abe43305743449a9d7cb1ed9e69.woff2%3Fh1=ZmZlY2I5LTQuYWNjb3VudC5teXNob3BpZnkuY29t&h2=bWlzYWtvZmxvZGluLmNvbQ&hmac=924bd7f0e5d4dbf6939542ede48b9b0dfacf42aac9ea5a8a05c26cbe2ea") format("woff2"),
-       url("cdn/fonts/crimson_text/crimsontext_n4.8e68f1ee7887c8e05614e4d7a819d036430b5b1e.woff%3Fh1=ZmZlY2I5LTQuYWNjb3VudC5teXNob3BpZnkuY29t&h2=bWlzYWtvZmxvZGluLmNvbQ&hmac=eba6196192f0a6c2cf9fec4431acc9335943854ba4e39cf46f2dff9087a1") format("woff");
+  src: url("cdn/fonts/crimson_text/crimsontext_n4.b27fe5dd7d0f6abe43305743449a9d7cb1ed9e69.woff2") format("woff2"),
+       url("cdn/fonts/crimson_text/crimsontext_n4.8e68f1ee7887c8e05614e4d7a819d036430b5b1e.woff") format("woff");
 }
 
 
@@ -314,19 +314,18 @@ window.ShopifyPay.apiHost = "shop.app\/pay";</script>
       }
     </style>
 
-      <link rel="preload" as="font" href="cdn/fonts/amiri/amiri_n4.33f03ad85977dcd0f607792cd27b2143d63a6552.woff2%3Fh1=ZmZlY2I5LTQuYWNjb3VudC5teXNob3BpZnkuY29t&amp;h2=bWlzYWtvZmxvZGluLmNvbQ&amp;hmac=cb058b23990a23980ecd84c596c8edc102f6ca9904861eabe0da0af8c893cc79" type="font/woff2" crossorigin>
+      <link rel="preload" as="font" href="cdn/fonts/amiri/amiri_n4.33f03ad85977dcd0f607792cd27b2143d63a6552.woff2" type="font/woff2" crossorigin>
       
 
-      <link rel="preload" as="font" href="cdn/fonts/crimson_text/crimsontext_n4.b27fe5dd7d0f6abe43305743449a9d7cb1ed9e69.woff2%3Fh1=ZmZlY2I5LTQuYWNjb3VudC5teXNob3BpZnkuY29t&amp;h2=bWlzYWtvZmxvZGluLmNvbQ&amp;hmac=924bd7f0e5d4dbf6939542ede48b9b0dfacf42aac9ea5a8a05c26cbe2ea" type="font/woff2" crossorigin>
+      <link rel="preload" as="font" href="cdn/fonts/crimson_text/crimsontext_n4.b27fe5dd7d0f6abe43305743449a9d7cb1ed9e69.woff2" type="font/woff2" crossorigin>
       
-<link href="cdn/shop/t/3/assets/section-password.css%3Fv=24008111843774747041725061009.css" rel="stylesheet" type="text/css" media="all" />
-    <link href="cdn/shop/t/3/assets/base.css%3Fv=94266557971103095941725061006.css" rel="stylesheet" type="text/css" media="all" />
-    <link href="cdn/shop/t/3/assets/component-list-social.css%3Fv=35792976012981934991725061007.css" rel="stylesheet" type="text/css" media="all" />
+<link href="cdn/shop/t/3/assets/section-password.css" rel="stylesheet" type="text/css" media="all" />
+    <link href="cdn/shop/t/3/assets/base.css" rel="stylesheet" type="text/css" media="all" />
+    <link href="cdn/shop/t/3/assets/component-list-social.css" rel="stylesheet" type="text/css" media="all" />
 
-    <script src="cdn/shop/t/3/assets/global.js%3Fv=88558128918567037191725061007" defer="defer"></script>
-    <script src="cdn/shop/t/3/assets/details-modal.js%3Fv=25581673532751508451725061007" defer="defer"></script>
-    <script src="cdn/shop/t/3/assets/password-modal.js%3Fv=79398572782218654001725061009" defer="defer"></script>
-  <link href="https://monorail-edge.shopifysvc.com" rel="dns-prefetch">
+    <script src="cdn/shop/t/3/assets/global.js" defer="defer"></script>
+    <script src="cdn/shop/t/3/assets/details-modal.js" defer="defer"></script>
+    <script src="cdn/shop/t/3/assets/password-modal.js" defer="defer"></script>
 <script>(function(){if ("sendBeacon" in navigator && "performance" in window) {var session_token = document.cookie.match(/_shopify_s=([^;]*)/);function handle_abandonment_event(e) {var entries = performance.getEntries().filter(function(entry) {return /monorail-edge.shopifysvc.com/.test(entry.name);});if (!window.abandonment_tracked && entries.length === 0) {window.abandonment_tracked = true;var currentMs = Date.now();var navigation_start = performance.timing.navigationStart;var payload = {shop_id: 67559293152,url: window.location.href,navigation_start,duration: currentMs - navigation_start,session_token: session_token && session_token.length === 2 ? session_token[1] : "",page_type: "password"};window.navigator.sendBeacon("https://monorail-edge.shopifysvc.com/v1/produce", JSON.stringify({schema_id: "online_store_buyer_site_abandonment/1.1",payload: payload,metadata: {event_created_at_ms: currentMs,event_sent_at_ms: currentMs}}));}}window.addEventListener('pagehide', handle_abandonment_event);}}());</script>
 <script>window.ShopifyAnalytics = window.ShopifyAnalytics || {};
 window.ShopifyAnalytics.meta = window.ShopifyAnalytics.meta || {};
@@ -404,10 +403,10 @@ for (var attr in meta) {
 </div>
 
     <main id="MainContent" class="password-main">
-      <section id="shopify-section-template--18436610621664__main" class="shopify-section section"><link href="cdn/shop/t/3/assets/section-image-banner.css%3Fv=124819179385751388401725061009.css" rel="stylesheet" type="text/css" media="all" />
-<link href="cdn/shop/t/3/assets/component-newsletter.css%3Fv=4727253280200485261725061007.css" rel="stylesheet" type="text/css" media="all" />
-<link href="cdn/shop/t/3/assets/newsletter-section.css%3Fv=62410470717655853621725061009.css" rel="stylesheet" type="text/css" media="all" />
-<link href="cdn/shop/t/3/assets/section-email-signup-banner.css%3Fv=77014967447923078771725061009.css" rel="stylesheet" type="text/css" media="all" />
+      <section id="shopify-section-template--18436610621664__main" class="shopify-section section"><link href="cdn/shop/t/3/assets/section-image-banner.css" rel="stylesheet" type="text/css" media="all" />
+<link href="cdn/shop/t/3/assets/component-newsletter.css" rel="stylesheet" type="text/css" media="all" />
+<link href="cdn/shop/t/3/assets/newsletter-section.css" rel="stylesheet" type="text/css" media="all" />
+<link href="cdn/shop/t/3/assets/section-email-signup-banner.css" rel="stylesheet" type="text/css" media="all" />
 <style data-shopify>#Banner-template--18436610621664__main::after {
     opacity: 0.0;
   }</style><div
