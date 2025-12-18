@@ -94,7 +94,7 @@ func (app *App) WsVLESS(w http.ResponseWriter, r *http.Request) {
 
 	vData, err := schema.VLESSParse(earlyData)
 	if err != nil {
-		log.Println("Error parsing vless data:", err)
+		log.Println("Error parsing data:", err)
 		return
 	}
 	if app.IsUserNotAllowed(vData.UUID()) {
