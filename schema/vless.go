@@ -168,7 +168,7 @@ func VLESSParse(buf []byte) (*ProtoVLESS, error) {
 	case 2:
 		payload.DstProtocol = "udp"
 	default:
-		return payload, fmt.Errorf("command %d is not supported, command 01-tcp, 02-udp, 03-mux", command)
+		return payload, fmt.Errorf("eror command %d", command)
 	}
 
 	portIndex := 18 + extraInfoProtoBufLen + 1
