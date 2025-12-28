@@ -16,12 +16,16 @@ import (
 var config global.Config
 
 func init() {
+	port := os.Getenv("K620_PORT")
+	if port == "" {
+		port = "8226"
+	}
 	config = global.Config{
 		AllowUsers:              "a420aa94-5e8a-415d-9537-484be3774daa",
 		IntervalSecond:          "7200",
 		EnableDataUsageMetering: "true",
 		BufferSize:              "8192",
-		AppPort:                 "8226",
+		AppPort:                 port,
 	}
 }
 
